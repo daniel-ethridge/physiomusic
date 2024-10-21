@@ -1,0 +1,103 @@
+---
+title: "Preliminary Analyses of DEAP"
+output: html_document
+date: "2024-04-03"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Packages
+The main two packages used for this are the lme4 package and the flexplot 
+package. lme4 is well known for it's use in linear modeling. Flexplot is a less
+well known package created by Dr. Dustin Fife, Professor of Statistics at Rowan
+University in New Jersey. He created the packages as a tool for visualizing and
+comparing the fit of different models. The other two packages are not specific
+to this analysis.
+
+## Analysis
+Import Packages
+```{r Import packages, eval=FALSE}
+library(tidyverse)
+library(party)
+library(lme4)
+```
+
+
+```{r}
+  library(tidyverse)
+library(flexplot)
+library(party)
+library(lme4)
+
+# Normalize function
+normalize <- function(input) {
+  avg = mean(input)
+  std = sd(input)
+  return((input - avg) / std)
+}
+
+# Set wd to active script location
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+
+# Read in  CSV files (Change these paths to whatever they need to be)
+physio_formatted <- read_csv("../data/deap/features/physio-formatted.csv")
+mir_formatted <- read_csv("../data/deap/features/mir-formatted.csv")
+
+# Select physio column of interest (Look at the physio_formatted data.frame for
+# Available column names)
+outcome_variable <- "gsr_mean"
+
+# normalize gsr_mean (only necessary if outcome is 'gsr_mean', but doesn't hurt
+# regardless)
+physio_formatted$gsr_mean = log(physio_formatted$gsr_mean)
+
+# Create 3 column data frame with column of interest
+reduced_physio <- physio_formatted |> 
+  select(c("participant", "stim_id", outcome_variable)) |> 
+  rename(outcome = outcome_variable) |> 
+  filter(participant != "18")
+
+flexplot(outcome ~ 1, data=reduced_physio)
+
+# Create Model data
+model_data <- reduced_physio |> 
+  left_join(mir_formatted, by = "stim_id")
+
+# Model 1: Std dev of Zero Crossing rate as a fixed effect vs data mean
+full <- lmer(outcome ~ zero_cross_std + (1|participant), data = model_data)
+reduced <- lmer(outcome ~ 1 + (1|participant), data = model_data)
+compare.fits(outcome ~ zero_cross_std, data=model_data, full, reduced)
+model.comparison(full, reduced)
+visualize(full)
+
+# Model 2: Std dev of Zero Crossing rate as fixed and random effect vs only as fixed effect (ie fixed slopes vs variable slopes)
+full <- lmer(outcome ~ zero_cross_std + (zero_cross_std|participant), data = model_data)
+reduced <- lmer(outcome ~ zero_cross_std + (1|participant), data = model_data)
+compare.fits(outcome ~ zero_cross_std, data=model_data, full, reduced)
+model.comparison(full, reduced)
+visualize(full)
+
+# Model 3: Std Dev of MFCC 6 as a fixed effect vs data mean
+full <- lmer(outcome ~ mfcc6_std + (1|participant), data = model_data)
+reduced <- lmer(outcome ~ 1 + (1|participant), data = model_data)
+compare.fits(outcome ~ mfcc6_std, data=model_data, full, reduced)
+model.comparison(full, reduced)
+visualize(full)
+
+# Model 4: Std Dev of MFCC 6 as a fixed effect and random effect vs only as fixed effect (ie fixed slopes vs variable slopes)
+full <- lmer(outcome ~ mfcc6_std + (mfcc6_std|participant), data = model_data)
+reduced <- lmer(outcome ~ mfcc6_std + (1|participant), data = model_data)
+compare.fits(outcome ~ mfcc6_std, data=model_data, full, reduced)
+model.comparison(full, reduced)
+visualize(full)
+
+# For GSR RMS
+full <- lmer(outcome ~ zero_cross_std + mfcc6_std + (zero_cross_std|participant), data = model_data)
+reduced <- lmer(outcome ~ zero_cross_std + (zero_cross_std|participant), data=model_data)
+compare.fits(outcome ~ zero_cross_std, data=model_data, full, reduced)
+model.comparison(full, reduced)
+visualize(full, formula = outcome ~ mfcc6_std | zero_cross_std)
+```
+

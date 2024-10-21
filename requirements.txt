@@ -1,0 +1,11 @@
+heartpy==1.2.7
+librosa==0.10.1
+matplotlib==3.9.2
+mne==1.6.1
+moviepy==1.0.3
+neurokit2==0.2.7
+numpy==2.1.2
+pandas==2.2.3
+pydub==0.25.1
+pytube==15.0.0
+scipy==1.14.1
